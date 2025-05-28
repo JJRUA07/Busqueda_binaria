@@ -1,15 +1,18 @@
 package servicios;
 
-import entidades.Documento;
 import java.util.ArrayList;
 import java.util.List;
 import javax.swing.JTable;
 import javax.swing.table.DefaultTableModel;
+import entidades.Documento;
 
 public class ServicioDocumento {
 
     private static List<Documento> documentos = new ArrayList<>();
+    private static List<Integer> coincidencias; // Guarda los índices de las coincidencias
+    private static int posicionActual; // Índice actual en la lista de coincidencias
 
+    // Métodos de carga y visualización (sin cambios)
     public static void cargar(String nombreArchivo) {
         var br = Archivo.abrirArchivo(nombreArchivo);
         if (br != null) {
@@ -23,7 +26,7 @@ public class ServicioDocumento {
                     linea = br.readLine();
                 }
             } catch (Exception ex) {
-
+                // Manejo de excepciones
             }
         }
     }
@@ -70,11 +73,6 @@ public class ServicioDocumento {
     public static void ordenarBurbuja(int criterio) {
         for (int i = 0; i < documentos.size() - 1; i++) {
             for (int j = i + 1; j < documentos.size(); j++) {
-                System.out.println(
-                        "d[i]=" + documentos.get(i).getNombreCompleto() + " " + documentos.get(i).getDocumento());
-                System.out.println(
-                        "d[j]=" + documentos.get(j).getNombreCompleto() + " " + documentos.get(j).getDocumento());
-
                 if (esMayor(documentos.get(i), documentos.get(j), criterio)) {
                     intercambiar(i, j);
                 }
@@ -113,111 +111,146 @@ public class ServicioDocumento {
         ordenarRapido(0, documentos.size() - 1, criterio);
     }
 
-    public static void ordenarInsercion(int criterio) {
-        for (int i = 1; i < documentos.size(); i++) {
-            var documentoActual = documentos.get(i);
-            // mover los documentos mayores que el actual
-            int j = i - 1;
-            while (j >= 0 && esMayor(documentos.get(j), documentoActual, criterio)) {
-                documentos.set(j + 1, documentos.get(j));
-                j--;
-            }
-            // insertar el documento
-            documentos.set(j + 1, documentoActual);
-        }
-    }
-
-    private static void ordenarInsercionRecursivo(int posicion, int criterio) {
-        if (posicion == 0) {
-            return;
-        }
-        ordenarInsercionRecursivo(posicion - 1, criterio);
-
-        var documentoActual = documentos.get(posicion);
-        // System.out.println(documentoActual.getNombreCompleto());
-        // mover los documentos mayores que el actual
-        int j = posicion - 1;
-        while (j >= 0 && esMayor(documentos.get(j), documentoActual, criterio)) {
-            // System.out.println(documentos.get(j));
-            documentos.set(j + 1, documentos.get(j));
-            j--;
-        }
-        // insertar el documento
-        documentos.set(j + 1, documentoActual);
-    }
-
+    // Método de ordenación por inserción recursivo (nuevo)
     public static void ordenarInsercionRecursivo(int criterio) {
         ordenarInsercionRecursivo(documentos.size() - 1, criterio);
     }
 
-    // Busqueda binaria
-    private static List<Integer> resultadosBusqueda = new ArrayList<>();
-    private static int indiceResultadoActual = -1;
-    private static int indiceActual = -1;
+    private static void ordenarInsercionRecursivo(int n, int criterio) {
+        if (n <= 0) return;
+        
+        ordenarInsercionRecursivo(n - 1, criterio);
+        
+        Documento ultimo = documentos.get(n);
+        int j = n - 1;
+        
+        while (j >= 0 && esMayor(documentos.get(j), ultimo, criterio)) {
+            documentos.set(j + 1, documentos.get(j));
+            j--;
+        }
+        documentos.set(j + 1, ultimo);
+    }
 
-    public static int buscarCoincidencia(String texto) {
-        resultadosBusqueda.clear(); // Limpiar resultados anteriores
-        indiceResultadoActual = -1; // Reiniciar posición
+    public static List<Documento> getDocumentos() {
+        return documentos;
+    }
 
-        if (documentos.isEmpty()) return -1;
+    // Resto de los métodos (sin cambios)
+    private static boolean estaOrdenadaPorNombreCompleto() {
+        for (int i = 0; i < documentos.size() - 1; i++) {
+            if (documentos.get(i).getNombreCompleto().compareTo(documentos.get(i + 1).getNombreCompleto()) > 0) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public static List<Documento> buscarCoincidencias(String texto) {
+        List<Documento> resultados = new ArrayList<>();
         texto = texto.toLowerCase().trim();
 
-        // Buscar coincidencias en todos los campos y guardar sus índices
-        for (int i = 0; i < documentos.size(); i++) {
-            Documento doc = documentos.get(i);
-            if (doc.getApellido1().toLowerCase().contains(texto) ||
-                doc.getApellido2().toLowerCase().contains(texto) ||
-                doc.getNombre().toLowerCase().contains(texto)) {
-                resultadosBusqueda.add(i); // Guardar índice del documento coincidente
+        if (!estaOrdenadaPorNombreCompleto()) {
+            ordenarRapido(0); // Asegura que esté ordenado por nombre completo
+        }
+
+        int posAproximada = busquedaBinaria(texto, 0, documentos.size() - 1);
+        
+        if (posAproximada != -1) {
+            int i = posAproximada;
+            while (i >= 0 && documentos.get(i).getNombreCompleto().toLowerCase().contains(texto)) {
+                resultados.add(0, documentos.get(i));
+                i--;
+            }
+            
+            i = posAproximada + 1;
+            while (i < documentos.size() && documentos.get(i).getNombreCompleto().toLowerCase().contains(texto)) {
+                resultados.add(documentos.get(i));
+                i++;
             }
         }
 
-        if (!resultadosBusqueda.isEmpty()) {
-            indiceResultadoActual = 0; // Empezar en el primer resultado
-            indiceActual = resultadosBusqueda.get(0); // Actualizar índice actual
-            return indiceActual;
+        return resultados;
+    }
+
+    private static int busquedaBinaria(String texto, int inicio, int fin) {
+        if (inicio > fin) {
+            return -1;
         }
 
-        return -1; // No se encontraron coincidencias
+        int medio = inicio + (fin - inicio) / 2;
+        String nombreMedio = documentos.get(medio).getNombreCompleto().toLowerCase();
+        
+        if (nombreMedio.contains(texto)) {
+            return medio;
+        }
+        
+        int comparacion = texto.compareTo(nombreMedio);
+        
+        if (comparacion < 0) {
+            if (medio > inicio && nombreMedio.startsWith(texto.substring(0, Math.min(texto.length(), 1)))) {
+                int izquierda = busquedaBinaria(texto, inicio, medio - 1);
+                if (izquierda != -1) return izquierda;
+            }
+            return busquedaBinaria(texto, inicio, medio - 1);
+        } else {
+            if (medio < fin && nombreMedio.startsWith(texto.substring(0, Math.min(texto.length(), 1)))) {
+                int derecha = busquedaBinaria(texto, medio + 1, fin);
+                if (derecha != -1) return derecha;
+            }
+            return busquedaBinaria(texto, medio + 1, fin);
+        }
     }
 
-    public static int getSiguienteCoincidencia() {
-        if (resultadosBusqueda.isEmpty() || indiceResultadoActual == -1) return -1;
+    public static void buscarTodasCoincidencias(String texto) {
+        coincidencias = new ArrayList<>();
+        texto = texto.toLowerCase();
 
-        indiceResultadoActual++;
-        if (indiceResultadoActual >= resultadosBusqueda.size()) {
-            indiceResultadoActual = 0; // Volver al inicio si llegamos al final
+        int primeraCoincidencia = busquedaBinaria(texto, 0, documentos.size() - 1);
+
+        if (primeraCoincidencia != -1) {
+            for (int i = primeraCoincidencia; i >= 0; i--) {
+                if (documentos.get(i).getNombreCompleto().toLowerCase().contains(texto)) {
+                    coincidencias.add(0, i);
+                } else {
+                    break;
+                }
+            }
+
+            for (int i = primeraCoincidencia + 1; i < documentos.size(); i++) {
+                if (documentos.get(i).getNombreCompleto().toLowerCase().contains(texto)) {
+                    coincidencias.add(i);
+                } else {
+                    break;
+                }
+            }
         }
 
-        indiceActual = resultadosBusqueda.get(indiceResultadoActual);
-        return indiceActual;
+        posicionActual = coincidencias.isEmpty() ? -1 : 0;
     }
 
-    public static int getAnteriorCoincidencia() {
-        if (resultadosBusqueda.isEmpty() || indiceResultadoActual == -1) return -1;
-
-        indiceResultadoActual--;
-        if (indiceResultadoActual < 0) {
-            indiceResultadoActual = resultadosBusqueda.size() - 1; // Ir al final si estamos al inicio
+    public static int siguienteCoincidencia() {
+        if (coincidencias == null || coincidencias.isEmpty() || posicionActual == -1) {
+            return -1;
         }
 
-        indiceActual = resultadosBusqueda.get(indiceResultadoActual);
-        return indiceActual;
-    }
-
-    public static Documento getDocumento(int index) {
-        if (index >= 0 && index < documentos.size()) {
-            return documentos.get(index);
+        posicionActual++;
+        if (posicionActual >= coincidencias.size()) {
+            posicionActual = 0;
         }
-        return null;
+
+        return coincidencias.get(posicionActual);
     }
 
-    public static int getIndiceActual() {
-        return indiceActual;
-    }
+    public static int anteriorCoincidencia() {
+        if (coincidencias == null || coincidencias.isEmpty() || posicionActual == -1) {
+            return -1;
+        }
 
-    public static void setIndiceActual(int index) {
-        indiceActual = index;
-    }
+        posicionActual--;
+        if (posicionActual < 0) {
+            posicionActual = coincidencias.size() - 1;
+        }
 
+        return coincidencias.get(posicionActual);
+    }
 }
