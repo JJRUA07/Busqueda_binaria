@@ -10,7 +10,6 @@ import javax.swing.DefaultComboBoxModel;
 import javax.swing.ImageIcon;
 import javax.swing.WindowConstants;
 
-import entidades.Documento;
 import servicios.ServicioDocumento;
 import servicios.Util;
 
@@ -28,10 +27,10 @@ public class FrmOrdenamiento extends JFrame {
     private JTextField txtTiempo;
     private JButton btnBuscar;
     private JTextField txtBuscar;
-    private JButton btnSiguiente;
-    private JButton btnAnterior;
 
     private JTable tblDocumentos;
+    private JButton btnAnterior;
+    private JButton btnSiguiente;
 
     public FrmOrdenamiento() {
 
@@ -47,9 +46,28 @@ public class FrmOrdenamiento extends JFrame {
 
         tblDocumentos = new JTable();
 
-        setSize(700, 500);
+        setSize(600, 400);
         setTitle("Ordenamiento Documentos");
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
+
+        // Declara los nuevos botones como atributos de la clase
+
+        // Dentro del constructor, después de agregar los demás botones:
+        btnAnterior = new JButton();
+        btnSiguiente = new JButton();
+
+        // Configura los botones (las imágenes las agregarás tú)
+        btnAnterior.setIcon(new ImageIcon(getClass().getResource("/iconos/Anterior.png"))); // Ajusta la ruta
+        btnAnterior.setToolTipText("Anterior coincidencia");
+        btnAnterior.addActionListener(e -> btnAnteriorClick());
+
+        btnSiguiente.setIcon(new ImageIcon(getClass().getResource("/iconos/Siguiente.png"))); // Ajusta la ruta
+        btnSiguiente.setToolTipText("Siguiente coincidencia");
+        btnSiguiente.addActionListener(e -> btnSiguienteClick());
+
+        // Agrega los botones a la barra de herramientas
+        tbOrdenamiento.add(btnAnterior);
+        tbOrdenamiento.add(btnSiguiente);
 
         btnOrdenarBurbuja.setIcon(new ImageIcon(getClass().getResource("/iconos/Ordenar.png")));
         btnOrdenarBurbuja.setToolTipText("Ordenar Burbuja");
@@ -58,24 +76,6 @@ public class FrmOrdenamiento extends JFrame {
                 btnOrdenarBurbujaClick(evt);
             }
         });
-        btnAnterior = new JButton(new ImageIcon(getClass().getResource("/iconos/Anterior.png")));
-        btnAnterior.setToolTipText("Anterior");
-        btnAnterior.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent evt) {
-                moverA(-1);
-            }
-        });
-        tbOrdenamiento.add(btnAnterior);
-
-        btnSiguiente = new JButton(new ImageIcon(getClass().getResource("/iconos/Siguiente.png")));
-        btnSiguiente.setToolTipText("Siguiente");
-        btnSiguiente.addActionListener(new ActionListener() {
-            public void actionPerformed(ActionEvent evt) {
-                moverA(1);
-            }
-        });
-        tbOrdenamiento.add(btnSiguiente);
-
         tbOrdenamiento.add(btnOrdenarBurbuja);
 
         btnOrdenarRapido.setIcon(new ImageIcon(getClass().getResource("/iconos/OrdenarRapido.png")));
@@ -152,30 +152,45 @@ public class FrmOrdenamiento extends JFrame {
 
     private void btnBuscar(ActionEvent evt) {
         String texto = txtBuscar.getText().trim();
-        Util.iniciarCronometro();
-        int indice = ServicioDocumento.buscarCoincidencia(texto);
-        txtTiempo.setText(Util.getTextoTiempoCronometro());
+        if (!texto.isEmpty()) {
+            Util.iniciarCronometro();
+            ServicioDocumento.buscarTodasCoincidencias(texto);
+            txtTiempo.setText(Util.getTextoTiempoCronometro());
+            mostrarSiguienteCoincidencia();
+        }
+    }
+
+    private void mostrarSiguienteCoincidencia() {
+        int indice = ServicioDocumento.siguienteCoincidencia();
         if (indice != -1) {
             tblDocumentos.setRowSelectionInterval(indice, indice);
             tblDocumentos.scrollRectToVisible(tblDocumentos.getCellRect(indice, 0, true));
         } else {
-            JOptionPane.showMessageDialog(this, "No se encontraron coincidencias con: " + texto,
-                    "Búsqueda sin resultados", JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(this, "No se encontraron coincidencias", "Búsqueda",
+                    JOptionPane.INFORMATION_MESSAGE);
         }
     }
 
-    private void moverA(int desplazamiento) {
-        int nuevoIndice;
-        if (desplazamiento == 1) { // Siguiente coincidencia
-            nuevoIndice = ServicioDocumento.getSiguienteCoincidencia();
-        } else { // Anterior coincidencia
-            nuevoIndice = ServicioDocumento.getAnteriorCoincidencia();
-        }
-
-        if (nuevoIndice != -1) {
-            tblDocumentos.setRowSelectionInterval(nuevoIndice, nuevoIndice);
-            tblDocumentos.scrollRectToVisible(tblDocumentos.getCellRect(nuevoIndice, 0, true));
+    private void btnAnteriorClick() {
+        int indice = ServicioDocumento.anteriorCoincidencia();
+        if (indice != -1) {
+            tblDocumentos.setRowSelectionInterval(indice, indice);
+            tblDocumentos.scrollRectToVisible(tblDocumentos.getCellRect(indice, 0, true));
+        } else {
+            JOptionPane.showMessageDialog(this, "No hay más coincidencias", "Búsqueda",
+                    JOptionPane.INFORMATION_MESSAGE);
         }
     }
 
+    private void btnSiguienteClick() {
+        int indice = ServicioDocumento.siguienteCoincidencia();
+        if (indice != -1) {
+            tblDocumentos.setRowSelectionInterval(indice, indice);
+            tblDocumentos.scrollRectToVisible(tblDocumentos.getCellRect(indice, 0, true));
+        } else {
+            JOptionPane.showMessageDialog(this, "No hay más coincidencias", "Búsqueda",
+                    JOptionPane.INFORMATION_MESSAGE);
+        }
+    }
+}
 }
